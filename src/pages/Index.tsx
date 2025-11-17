@@ -7,6 +7,7 @@ import AuthDialog from "@/components/AuthDialog";
 import Dashboard from "@/components/Dashboard";
 import ScrollToTop from "@/components/ScrollToTop";
 import { useToast } from "@/hooks/use-toast";
+import { api } from "@/lib/api";
 
 type View = 'grade' | 'subject' | 'tasks' | 'dashboard';
 
@@ -17,6 +18,7 @@ export default function Index() {
   const [isAuthDialogOpen, setIsAuthDialogOpen] = useState(false);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [userRole, setUserRole] = useState<'teacher' | 'student'>('student');
+  const [userId, setUserId] = useState<number | undefined>(undefined);
   const [searchQuery, setSearchQuery] = useState("");
   const { toast } = useToast();
 
@@ -30,14 +32,27 @@ export default function Index() {
     setView('tasks');
   };
 
-  const handleLogin = (email: string, password: string, role: 'teacher' | 'student') => {
-    setIsAuthenticated(true);
-    setUserRole(role);
-    setIsAuthDialogOpen(false);
-    toast({
-      title: "Вход выполнен",
-      description: `Добро пожаловать, ${role === 'teacher' ? 'учитель' : 'ученик'}!`,
-    });
+  const handleLogin = async (email: string, password: string, role: 'teacher' | 'student') => {
+    try {
+      const { user, token } = await api.auth.login(email, password);
+      setIsAuthenticated(true);
+      setUserRole(user.role);
+      setUserId(user.id);
+      setIsAuthDialogOpen(false);
+      localStorage.setItem('auth_token', token);
+      localStorage.setItem('user_id', user.id.toString());
+      localStorage.setItem('user_role', user.role);
+      toast({
+        title: "Вход выполнен",
+        description: `Добро пожаловать, ${user.role === 'teacher' ? 'учитель' : 'ученик'}!`,
+      });
+    } catch (error) {
+      toast({
+        title: "Ошибка входа",
+        description: "Неверный email или пароль",
+        variant: "destructive",
+      });
+    }
   };
 
   const handleAuthClick = () => {
@@ -85,6 +100,8 @@ export default function Index() {
           subject={selectedSubject}
           onBack={() => setView('subject')}
           searchQuery={searchQuery}
+          isTeacher={userRole === 'teacher'}
+          userId={userId}
         />
       )}
 

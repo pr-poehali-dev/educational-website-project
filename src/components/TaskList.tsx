@@ -3,12 +3,16 @@ import { Button } from "@/components/ui/button";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { Badge } from "@/components/ui/badge";
 import Icon from "@/components/ui/icon";
+import { useEffect, useState } from "react";
+import { api, Task } from "@/lib/api";
 
 interface TaskListProps {
   grade: 8 | 9;
   subject: 'algebra' | 'geometry';
   onBack: () => void;
   searchQuery?: string;
+  isTeacher?: boolean;
+  userId?: number;
 }
 
 const chapters = {
@@ -46,9 +50,31 @@ const chapters = {
   },
 };
 
-export default function TaskList({ grade, subject, onBack, searchQuery }: TaskListProps) {
+export default function TaskList({ grade, subject, onBack, searchQuery, isTeacher, userId }: TaskListProps) {
   const currentChapters = chapters[grade][subject];
   const subjectTitle = subject === 'algebra' ? 'Алгебра' : 'Геометрия';
+  const [tasks, setTasks] = useState<Task[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const loadTasks = async () => {
+      try {
+        setLoading(true);
+        const fetchedTasks = await api.tasks.getAll({ grade, subject });
+        setTasks(fetchedTasks);
+      } catch (error) {
+        console.error('Failed to load tasks:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadTasks();
+  }, [grade, subject]);
+
+  const getChapterTasks = (chapterId: number) => {
+    return tasks.filter(task => task.chapter_id === chapterId);
+  };
 
   return (
     <div className="min-h-[calc(100vh-4rem)] p-6 bg-gradient-to-br from-background via-secondary/30 to-background">
@@ -108,21 +134,66 @@ export default function TaskList({ grade, subject, onBack, searchQuery }: TaskLi
                     </span>
                   </div>
                   <Badge variant="secondary" className="ml-4">
-                    {chapter.tasksCount} задач
+                    {getChapterTasks(chapter.id).length} задач
                   </Badge>
                 </div>
               </AccordionTrigger>
               <AccordionContent className="px-6 pb-6">
                 <div className="pt-4 border-t">
-                  <div className="text-center py-8 text-muted-foreground">
-                    <Icon name="FileText" size={48} className="mx-auto mb-3 opacity-40" />
-                    <p className="text-sm">
-                      Задачи для этой главы пока не добавлены
-                    </p>
-                    <p className="text-xs mt-1">
-                      Вы сможете добавить их через панель администратора
-                    </p>
-                  </div>
+                  {loading ? (
+                    <div className="text-center py-8 text-muted-foreground">
+                      <Icon name="Loader2" size={48} className="mx-auto mb-3 opacity-40 animate-spin" />
+                      <p className="text-sm">Загрузка задач...</p>
+                    </div>
+                  ) : getChapterTasks(chapter.id).length === 0 ? (
+                    <div className="text-center py-8 text-muted-foreground">
+                      <Icon name="FileText" size={48} className="mx-auto mb-3 opacity-40" />
+                      <p className="text-sm">
+                        Задачи для этой главы пока не добавлены
+                      </p>
+                      <p className="text-xs mt-1">
+                        Вы сможете добавить их через панель администратора
+                      </p>
+                    </div>
+                  ) : (
+                    <div className="space-y-3">
+                      {getChapterTasks(chapter.id).map((task) => (
+                        <Card key={task.id} className="hover:shadow-md transition-shadow">
+                          <CardContent className="p-4">
+                            <div className="flex items-start justify-between gap-4">
+                              <div className="flex-1">
+                                <h4 className="font-semibold mb-2">{task.title}</h4>
+                                <p className="text-sm text-muted-foreground mb-3">{task.description}</p>
+                                <div className="flex items-center gap-2 flex-wrap">
+                                  <Badge variant="outline" className="text-xs">
+                                    {task.difficulty === 'easy' ? 'Легко' : task.difficulty === 'medium' ? 'Средне' : 'Сложно'}
+                                  </Badge>
+                                  <Badge variant="secondary" className="text-xs">
+                                    {task.points} баллов
+                                  </Badge>
+                                  {task.external_link && (
+                                    <a 
+                                      href={task.external_link} 
+                                      target="_blank" 
+                                      rel="noopener noreferrer"
+                                      className="text-xs text-primary hover:underline flex items-center gap-1"
+                                    >
+                                      <Icon name="ExternalLink" size={14} />
+                                      Внешняя ссылка
+                                    </a>
+                                  )}
+                                </div>
+                              </div>
+                              <Button size="sm">
+                                <Icon name="Play" size={16} className="mr-1" />
+                                Начать
+                              </Button>
+                            </div>
+                          </CardContent>
+                        </Card>
+                      ))}
+                    </div>
+                  )}
                 </div>
               </AccordionContent>
             </AccordionItem>

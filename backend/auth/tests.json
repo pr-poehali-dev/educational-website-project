@@ -1,0 +1,17 @@
+{
+  "tests": [
+    {
+      "name": "Register new user",
+      "method": "POST",
+      "path": "/",
+      "body": {
+        "action": "register",
+        "email": "newuser@example.com",
+        "password": "password123",
+        "role": "student",
+        "full_name": "Test Student"
+      },
+      "expectedStatus": 201
+    }
+  ]
+}
